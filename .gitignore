@@ -30,6 +30,7 @@ frontend/dist/
 
 # Claude Code 本地配置
 .claude/
+CLAUDE.md
 
 # 临时文件
 *.tmp

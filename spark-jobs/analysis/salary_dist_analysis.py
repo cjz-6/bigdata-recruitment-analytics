@@ -26,7 +26,6 @@ SALARY_RANGES = [
 
 spark = SparkSession.builder \
     .appName('SalaryDistAnalysis') \
-    .config('spark.jars', '/opt/spark-jars/mysql-connector-j-8.3.0.jar') \
     .getOrCreate()
 
 df = spark.read.jdbc(MYSQL_URL, 'jobs_raw', properties=MYSQL_PROPS) \

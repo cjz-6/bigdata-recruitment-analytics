@@ -24,6 +24,11 @@ def create_app():
     CORS(app)
     db.init_app(app)
 
+    # 确保数据库表已创建
+    from app import models  # noqa: F811
+    with app.app_context():
+        db.create_all()
+
     # Dify AI 配置
     app.config['DIFY_API_KEY'] = os.getenv('DIFY_API_KEY', '')
     app.config['DIFY_API_URL'] = os.getenv('DIFY_API_URL', 'http://dify-proxy:80')

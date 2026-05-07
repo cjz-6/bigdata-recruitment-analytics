@@ -26,6 +26,8 @@ case "${1:-all}" in
         ;;
     services)
         COMPOSE_FILES="$COMPOSE_FILES -f docker-compose.services.yml"
+        docker compose $COMPOSE_FILES up -d --build mysql spark-master spark-worker backend frontend
+        exit 0
         ;;
     mysql)
         COMPOSE_FILES="$COMPOSE_FILES -f docker-compose.services.yml"
@@ -52,7 +54,7 @@ case "${1:-all}" in
         ;;
     dify)
         COMPOSE_FILES="$COMPOSE_FILES -f docker-compose.services.yml"
-        docker compose $COMPOSE_FILES up -d dify-db dify-redis dify-api dify-worker dify-web
+        docker compose $COMPOSE_FILES up -d dify-db dify-redis dify-api dify-worker dify-web dify-proxy
         exit 0
         ;;
     *)

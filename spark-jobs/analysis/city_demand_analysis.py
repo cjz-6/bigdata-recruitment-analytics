@@ -16,7 +16,6 @@ MYSQL_PROPS = {
 
 spark = SparkSession.builder \
     .appName('CityDemandAnalysis') \
-    .config('spark.jars', '/opt/spark-jars/mysql-connector-j-8.3.0.jar') \
     .getOrCreate()
 
 # 读取原始数据

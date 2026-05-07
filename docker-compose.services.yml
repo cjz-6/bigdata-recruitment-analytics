@@ -55,6 +55,11 @@ services:
       - SPARK_WORKER_MEMORY=2g
       - SPARK_WORKER_CORES=2
       - HADOOP_CONF_DIR=/opt/spark/conf/hadoop
+      - MYSQL_HOST=mysql
+      - MYSQL_PORT=3306
+      - MYSQL_USER=${MYSQL_USER:-bigdata}
+      - MYSQL_PASSWORD=${MYSQL_PASSWORD:-请替换为你的MySQL密码}
+      - MYSQL_DATABASE=${MYSQL_DATABASE:-job_analysis}
       - TZ=Asia/Shanghai
     volumes:
       - cjz-spark-master-data:/opt/spark/work
@@ -82,6 +87,11 @@ services:
       - SPARK_WORKER_MEMORY=2g
       - SPARK_WORKER_CORES=2
       - HADOOP_CONF_DIR=/opt/spark/conf/hadoop
+      - MYSQL_HOST=mysql
+      - MYSQL_PORT=3306
+      - MYSQL_USER=${MYSQL_USER:-bigdata}
+      - MYSQL_PASSWORD=${MYSQL_PASSWORD:-请替换为你的MySQL密码}
+      - MYSQL_DATABASE=${MYSQL_DATABASE:-job_analysis}
       - TZ=Asia/Shanghai
     volumes:
       - cjz-spark-worker-data:/opt/spark/work

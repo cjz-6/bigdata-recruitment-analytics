@@ -5,17 +5,12 @@ LABEL org.opencontainers.image.authors="陈坚卓"
 LABEL org.opencontainers.image.version="1.0.0"
 LABEL org.opencontainers.image.vendor="MZVTC-2023"
 
-#安装依赖
-RUN dnf install -y wget tar openssh tzdata && \
+#安装依赖（使用系统包管理器安装 OpenJDK 11，避免失效的外部下载链接）
+RUN dnf install -y wget tar openssh tzdata java-11-openjdk && \
     yum clean all && \
     ln -sf /usr/share/zoneinfo/Asia/Shanghai /etc/localtime && \
-    echo "Asia/Shanghai" > /etc/timezone
-
-#安装openjdk
-RUN  wget https://download.java.net/java/GA/jdk11/9/GPL/openjdk-11.0.2_linux-x64_bin.tar.gz && \
-	tar -xvf openjdk-11.0.2_linux-x64_bin.tar.gz -C /usr/local && \
-	mv /usr/local/jdk-11.0.2 /usr/local/jdk11 && \
-	rm -f openjdk-11.0.2_linux-x64_bin.tar.gz
+    echo "Asia/Shanghai" > /etc/timezone && \
+    ln -s $(dirname $(dirname $(readlink -f $(which java)))) /usr/local/jdk11
 
 #安装Hadoop
 RUN wget https://dlcdn.apache.org/hadoop/common/hadoop-3.4.2/hadoop-3.4.2.tar.gz && \

@@ -3,12 +3,15 @@
 # 建议每月执行一次：0 3 1 * * /root/bigdata/scripts/cleanup_old_data.sh
 
 set -e
+cd "$(dirname "$0")/.."
+
 THREE_MONTHS_AGO=$(date -d '3 months ago' +%Y-%m-%d)
 echo "[$(date)] 清理 ${THREE_MONTHS_AGO} 之前的旧数据..."
 
 # ─── MySQL: 删除 3 个月前的岗位数据 ───
 echo "[MySQL] 清理 jobs_raw..."
-MYSQL_CMD="docker exec cjz-mysql mysql -u bigdata -p请替换为你的MySQL密码 -D job_analysis"
+# 注意：请先在 .env 文件中配置 MYSQL_PASSWORD，或直接替换下行中的占位符
+MYSQL_CMD="docker exec cjz-mysql mysql -u bigdata -p${MYSQL_PASSWORD:-请替换为你的MySQL密码} -D job_analysis"
 
 BEFORE_COUNT=$($MYSQL_CMD -N -e "SELECT COUNT(*) FROM jobs_raw WHERE crawl_time < '${THREE_MONTHS_AGO}'" 2>/dev/null)
 echo "  待删除: ${BEFORE_COUNT} 条"

@@ -12,11 +12,12 @@ from pyspark.sql.functions import (
 )
 from pyspark.sql.types import DecimalType
 import json
+import os
 
 MYSQL_URL = "jdbc:mysql://cjz-mysql:3306/job_analysis"
 MYSQL_PROPS = {
     "user": "root",
-    "password": "请替换为你的MySQL密码",
+    "password": os.getenv("MYSQL_PASSWORD", "请替换为你的MySQL密码"),
     "driver": "com.mysql.cj.jdbc.Driver",
 }
 

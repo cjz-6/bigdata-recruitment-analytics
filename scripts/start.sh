@@ -31,7 +31,8 @@ case "${1:-all}" in
         COMPOSE_FILES="$COMPOSE_FILES -f docker-compose.services.yml"
         docker compose $COMPOSE_FILES up -d mysql
         echo "MySQL started. Waiting for healthy..."
-        docker compose $COMPOSE_FILES exec mysql mysqladmin ping -h localhost -u root -p请替换为你的MySQL密码 --wait=30
+        # 注意：请先在 .env 文件中配置 MYSQL_ROOT_PASSWORD，或直接替换下行中的占位符
+        docker compose $COMPOSE_FILES exec mysql mysqladmin ping -h localhost -u root -p"${MYSQL_ROOT_PASSWORD:-请替换为你的MySQL密码}" --wait=30
         exit 0
         ;;
     spark)

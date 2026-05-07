@@ -45,7 +45,7 @@ RETRY_HTTP_CODES = [500, 502, 503, 504, 408, 429]
 MYSQL_HOST = '127.0.0.1'
 MYSQL_PORT = 3306
 MYSQL_USER = 'bigdata'
-MYSQL_PASSWORD = '请替换为你的MySQL密码'
+MYSQL_PASSWORD = os.getenv('MYSQL_PASSWORD', '请替换为你的MySQL密码')
 MYSQL_DATABASE = 'job_analysis'
 
 # ─── Pipeline ───

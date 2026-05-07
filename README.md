@@ -91,6 +91,67 @@
 
 ---
 
+## 配置说明（重要）
+
+**克隆项目后，你必须替换以下文件中的默认密码/密钥，否则服务无法正常启动或存在安全风险。**
+
+### 需要替换的文件清单
+
+| 文件 | 需替换的内容 | 备注 |
+|------|-------------|------|
+| `.env` | 所有密码和密钥 | 从 `.env.example` 复制后，替换全部 `your_xxx` 占位符 |
+| `docker-compose.services.yml` | MySQL / Dify 密码默认值 | 已用 `请替换为你的xxx密码` 占位，如果你已在 `.env` 中设置了环境变量，则无需修改此文件 |
+| `spark/analysis.py` | MySQL 密码 | 第 20 行附近：`请替换为你的MySQL密码` |
+| `crawler/crawler/settings.py` | MySQL 密码 | 第 48 行附近：`请替换为你的MySQL密码` |
+| `crawler/crawler/pipelines.py` | MySQL 密码默认值 | 第 22 行附近：`请替换为你的MySQL密码` |
+| `backend/app/main.py` | MySQL 密码默认值 | 第 15 行附近：`请替换为你的MySQL密码` |
+| `spark-jobs/analysis/salary_dist_analysis.py` | MySQL 密码默认值 | 第 12 行附近：`请替换为你的MySQL密码` |
+| `spark-jobs/analysis/city_demand_analysis.py` | MySQL 密码默认值 | 第 13 行附近：`请替换为你的MySQL密码` |
+| `spark-jobs/analysis/skill_freq_analysis.py` | MySQL 密码默认值 | 第 13 行附近：`请替换为你的MySQL密码` |
+| `spark-jobs/analysis/edu_salary_analysis.py` | MySQL 密码默认值 | 第 12 行附近：`请替换为你的MySQL密码` |
+| `scripts/start.sh` | MySQL root 密码 | 第 35 行附近 |
+| `scripts/cleanup_old_data.sh` | MySQL 用户密码 | 第 14 行附近 |
+
+### 配置步骤
+
+**第 1 步 — 配置 .env（推荐）**
+
+```bash
+cp .env.example .env
+vim .env   # 将所有 your_xxx 替换为你的真实密码和密钥
+```
+
+设置 `.env` 后，大部分密码会通过 Docker Compose 的 `${VAR}` 语法自动注入，覆盖各文件的硬编码默认值。但为确保安全，**仍然建议将所有 `请替换为你的xxx密码` 占位符替换为你的真实密码**。
+
+**第 2 步 — 搜索并替换剩余占位符**
+
+```bash
+# 在项目根目录执行，搜索所有尚未替换的占位符
+grep -rn "请替换为" --include="*.py" --include="*.sh" --include="*.yml" .
+```
+
+**第 3 步 — 验证没有遗漏**
+
+```bash
+# 确保没有硬编码的真实密码残留（仅供自查）
+grep -rn "请替换为你的MySQL密码\|请替换为你的Dify数据库密码\|请替换为你的Dify_Redis密码\|sk-bigdata-dify" --include="*.py" --include="*.sh" --include="*.yml" .
+# 该命令应返回空结果（如果你是从 GitHub 克隆的，应该已经清理干净）
+```
+
+### .env 需要配置的变量
+
+| 变量 | 说明 |
+|------|------|
+| `MYSQL_ROOT_PASSWORD` | MySQL root 密码 |
+| `MYSQL_PASSWORD` | MySQL 业务用户密码 |
+| `DIFY_SECRET_KEY` | Dify 平台加密密钥 |
+| `DIFY_DB_PASSWORD` | Dify PostgreSQL 数据库密码 |
+| `DIFY_REDIS_PASSWORD` | Dify Redis 密码 |
+| `DIFY_API_KEY` | Dify 应用的 API Key（在 Dify 控制台创建应用后获取） |
+| `DIFY_CONSOLE_WEB_URL` 等 | Dify 服务端点 IP/域名（按你的实际部署地址填写） |
+
+---
+
 ## 快速开始
 
 ### 1. 克隆项目
@@ -98,7 +159,7 @@
 ```bash
 git clone git@github.com:cjz-6/bigdata-recruitment-analytics.git
 cd bigdata-recruitment-analytics
-cp .env.example .env   # 编辑 .env 修改密码
+# 请先完成上方「配置说明」中的步骤，否则服务无法正常启动！
 ```
 
 ### 2. 启动服务

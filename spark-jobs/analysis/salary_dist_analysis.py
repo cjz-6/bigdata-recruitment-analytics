@@ -1,9 +1,11 @@
 """
 PySpark 分析任务3：薪资分布统计
-将薪资划分为多个区间，统计每个区间的岗位数量
+将薪资划分为多个区间，统计每个区间的岗位数量，
+结果写入 stat_salary_dist 表
 """
 from pyspark.sql import SparkSession
-from pyspark.sql.functions import col, count, when, current_date, lit, round as spark_round
+from pyspark.sql.functions import col, count, when, current_date, lit, round as spark_round, monotonically_increasing_id
+from pyspark.sql.types import LongType
 import os
 
 MYSQL_URL = f"jdbc:mysql://{os.getenv('MYSQL_HOST', 'mysql')}:3306/{os.getenv('MYSQL_DATABASE', 'job_analysis')}"
@@ -31,10 +33,8 @@ spark = SparkSession.builder \
 df = spark.read.jdbc(MYSQL_URL, 'jobs_raw', properties=MYSQL_PROPS) \
     .filter(col('salary_min').isNotNull() & col('salary_max').isNotNull())
 
-# 计算平均薪资
 df = df.withColumn('avg_salary', (col('salary_min') + col('salary_max')) / 2)
 
-# 划分薪资区间
 total = df.count()
 case_expr = None
 for label, low, high in SALARY_RANGES:
@@ -44,13 +44,14 @@ for label, low, high in SALARY_RANGES:
 df = df.withColumn('salary_range', case_expr)
 
 result = df.groupBy('salary_range').agg(count('*').alias('job_count')) \
-    .withColumn('percentage', spark_round(col('job_count') / lit(total) * 100, 2)) \
-    .withColumn('stat_date', current_date())
+    .withColumn('percentage', spark_round(col('job_count') / lit(total) * 100, 2))
 
 # 添加区间上下限
 range_map = spark.createDataFrame(SALARY_RANGES, ['salary_range', 'range_min', 'range_max'])
 result = result.join(range_map, 'salary_range', 'left') \
-    .select('salary_range', 'range_min', 'range_max', 'job_count', 'percentage', 'stat_date')
+    .withColumn('id', monotonically_increasing_id().cast(LongType())) \
+    .withColumn('stat_date', current_date()) \
+    .select('id', 'salary_range', 'range_min', 'range_max', 'job_count', 'percentage', 'stat_date')
 
 result.write.jdbc(MYSQL_URL, 'stat_salary_dist', mode='overwrite', properties=MYSQL_PROPS)
 

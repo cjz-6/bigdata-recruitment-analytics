@@ -4,8 +4,9 @@
 ln -sf /usr/share/zoneinfo/Asia/Shanghai /etc/localtime
 echo "Asia/Shanghai" > /etc/timezone
 
-# 启动SSH服务（必需）
-service ssh start
+# 生成 SSH 主机密钥并启动 SSH（Hadoop 内部通信需要）
+ssh-keygen -A 2>/dev/null || true
+/usr/sbin/sshd
 
 # 根据容器角色启动不同服务
 if [ "$HADOOP_ROLE" = "namenode" ]; then

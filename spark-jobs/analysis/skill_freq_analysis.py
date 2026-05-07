@@ -1,10 +1,11 @@
 """
 PySpark 分析任务2：技能词频统计
-从 jobs_raw 的 skills 字段中提取技能，统计出现频率
+从 jobs_raw 的 skills 字段中提取技能，统计出现频率，
+结果写入 stat_skill_freq 表
 """
 from pyspark.sql import SparkSession
-from pyspark.sql.functions import col, count, explode, from_json, current_date, lit, round as spark_round
-from pyspark.sql.types import ArrayType, StringType
+from pyspark.sql.functions import col, count, explode, from_json, current_date, lit, round as spark_round, monotonically_increasing_id
+from pyspark.sql.types import ArrayType, StringType, LongType
 import os
 
 MYSQL_URL = f"jdbc:mysql://{os.getenv('MYSQL_HOST', 'mysql')}:3306/{os.getenv('MYSQL_DATABASE', 'job_analysis')}"
@@ -25,11 +26,13 @@ skills_df = df.withColumn('skill_list', from_json(col('skills'), ArrayType(Strin
     .select(explode(col('skill_list')).alias('skill')) \
     .filter(col('skill').isNotNull() & (col('skill') != ''))
 
-# 统计频率
+# 统计频率，输出字段与 SQLAlchemy 模型一致
 total = skills_df.count()
 result = skills_df.groupBy('skill').agg(count('*').alias('frequency')) \
     .withColumn('percentage', spark_round(col('frequency') / lit(total) * 100, 2)) \
+    .withColumn('id', monotonically_increasing_id().cast(LongType())) \
     .withColumn('stat_date', current_date()) \
+    .select('id', 'skill', 'frequency', 'percentage', 'stat_date') \
     .orderBy(col('frequency').desc())
 
 result.write.jdbc(MYSQL_URL, 'stat_skill_freq', mode='overwrite', properties=MYSQL_PROPS)

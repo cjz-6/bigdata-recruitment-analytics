@@ -4,7 +4,8 @@ PySpark 分析任务1：城市岗位需求统计
 结果写入 stat_city_demand 表
 """
 from pyspark.sql import SparkSession
-from pyspark.sql.functions import col, count, avg, current_date, lit
+from pyspark.sql.functions import col, count, avg, current_date, monotonically_increasing_id, round as spark_round
+from pyspark.sql.types import LongType
 import os
 
 MYSQL_URL = f"jdbc:mysql://{os.getenv('MYSQL_HOST', 'mysql')}:3306/{os.getenv('MYSQL_DATABASE', 'job_analysis')}"
@@ -21,13 +22,14 @@ spark = SparkSession.builder \
 # 读取原始数据
 df = spark.read.jdbc(MYSQL_URL, 'jobs_raw', properties=MYSQL_PROPS)
 
-# 按城市聚合
+# 按城市聚合，输出字段与 SQLAlchemy 模型一致（id, city, job_count, avg_salary, stat_date）
 result = df.groupBy('city').agg(
     count('*').alias('job_count'),
-    avg((col('salary_min') + col('salary_max')) / 2).alias('avg_salary')
-).withColumn('stat_date', current_date())
+    spark_round(avg((col('salary_min') + col('salary_max')) / 2), 2).alias('avg_salary')
+).withColumn('id', monotonically_increasing_id().cast(LongType())) \
+ .withColumn('stat_date', current_date()) \
+ .select('id', 'city', 'job_count', 'avg_salary', 'stat_date')
 
-# 写入分析结果表
 result.write.jdbc(MYSQL_URL, 'stat_city_demand', mode='overwrite', properties=MYSQL_PROPS)
 
 print(f'[CityDemand] Wrote {result.count()} rows')

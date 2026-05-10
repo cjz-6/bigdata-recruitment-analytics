@@ -294,8 +294,4 @@ MIT License
 
 ---
 
-## 作者
-
-陈坚卓 @ 广东梅州职业技术学院
-
 GitHub: [@cjz-6](https://github.com/cjz-6)

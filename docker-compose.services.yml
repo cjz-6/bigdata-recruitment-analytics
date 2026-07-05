@@ -1,0 +1,336 @@
+# =============================================================================
+# 第三层：业务服务层
+# 职责：MySQL、Spark、Flask 后端、Vue 前端、Dify AI 智能体
+# 所有容器加入第一层定义的 cjz-bigdata-net 网络，通过服务名互相访问
+# 使用方式：docker compose -f docker-compose.base.yml -f docker-compose.services.yml up -d
+# =============================================================================
+
+services:
+  # ─────────────────────────────────────────────────────────────────────────────
+  # MySQL 8.0 — 存储爬虫原始数据和 Spark 分析结果
+  # ─────────────────────────────────────────────────────────────────────────────
+  mysql:
+    image: mysql:8.0
+    container_name: cjz-mysql
+    hostname: mysql
+    networks:
+      - cjz-bigdata-net
+    ports:
+      - "3306:3306"
+    environment:
+      - MYSQL_ROOT_PASSWORD=${MYSQL_ROOT_PASSWORD:-请替换为你的MySQL密码}
+      - MYSQL_DATABASE=${MYSQL_DATABASE:-job_analysis}
+      - MYSQL_USER=${MYSQL_USER:-bigdata}
+      - MYSQL_PASSWORD=${MYSQL_PASSWORD:-请替换为你的MySQL密码}
+      - TZ=Asia/Shanghai
+    volumes:
+      - cjz-mysql-data:/var/lib/mysql
+      - cjz-mysql-logs:/var/log/mysql
+      - cjz-mysql-conf:/etc/mysql/conf.d
+      - cjz-mysql-init:/docker-entrypoint-initdb.d
+    healthcheck:
+      test: ["CMD", "mysqladmin", "ping", "-h", "localhost", "-u", "root", "-p${MYSQL_ROOT_PASSWORD:-请替换为你的MySQL密码}"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    restart: unless-stopped
+
+  # ─────────────────────────────────────────────────────────────────────────────
+  # Spark Master — 连接第二层的 Hadoop 集群
+  # ─────────────────────────────────────────────────────────────────────────────
+  spark-master:
+    build: ./spark
+    container_name: cjz-spark-master
+    hostname: spark-master
+    networks:
+      - cjz-bigdata-net
+    ports:
+      - "18080:18080"
+      - "7077:7077"
+      - "8082:8080"
+    environment:
+      - SPARK_MODE=master
+      - SPARK_MASTER_HOST=spark-master
+      - SPARK_MASTER_PORT=7077
+      - SPARK_WORKER_MEMORY=2g
+      - SPARK_WORKER_CORES=2
+      - HADOOP_CONF_DIR=/opt/spark/conf/hadoop
+      - TZ=Asia/Shanghai
+    volumes:
+      - cjz-spark-master-data:/opt/spark/work
+      - cjz-spark-jars:/opt/spark-extra-jars
+      - ./hadoop/config/core-site.xml:/opt/spark/conf/hadoop/core-site.xml:ro
+      - ./hadoop/config/hdfs-site.xml:/opt/spark/conf/hadoop/hdfs-site.xml:ro
+      - ./spark-jobs:/opt/spark-jobs:ro
+      - /etc/localtime:/etc/localtime:ro
+    restart: unless-stopped
+
+  # ─────────────────────────────────────────────────────────────────────────────
+  # Spark Worker — 连接第二层的 Hadoop 集群
+  # ─────────────────────────────────────────────────────────────────────────────
+  spark-worker:
+    build: ./spark
+    container_name: cjz-spark-worker
+    hostname: spark-worker
+    networks:
+      - cjz-bigdata-net
+    ports:
+      - "8083:8081"
+    environment:
+      - SPARK_MODE=worker
+      - SPARK_MASTER_URL=spark://spark-master:7077
+      - SPARK_WORKER_MEMORY=2g
+      - SPARK_WORKER_CORES=2
+      - HADOOP_CONF_DIR=/opt/spark/conf/hadoop
+      - TZ=Asia/Shanghai
+    volumes:
+      - cjz-spark-worker-data:/opt/spark/work
+      - cjz-spark-jars:/opt/spark-extra-jars
+      - ./hadoop/config/core-site.xml:/opt/spark/conf/hadoop/core-site.xml:ro
+      - ./hadoop/config/hdfs-site.xml:/opt/spark/conf/hadoop/hdfs-site.xml:ro
+      - ./spark-jobs:/opt/spark-jobs:ro
+      - /etc/localtime:/etc/localtime:ro
+    depends_on:
+      - spark-master
+    restart: unless-stopped
+
+  # ─────────────────────────────────────────────────────────────────────────────
+  # Flask 后端 — 基于 ./backend 目录构建，提供 REST API
+  # ─────────────────────────────────────────────────────────────────────────────
+  backend:
+    build:
+      context: ./backend
+      dockerfile: Dockerfile
+    container_name: cjz-backend
+    hostname: backend
+    networks:
+      - cjz-bigdata-net
+    ports:
+      - "5000:5000"
+    environment:
+      - FLASK_ENV=${FLASK_ENV:-production}
+      - FLASK_APP=${FLASK_APP:-app.main:app}
+      - MYSQL_HOST=mysql
+      - MYSQL_PORT=3306
+      - MYSQL_USER=${MYSQL_USER:-bigdata}
+      - MYSQL_PASSWORD=${MYSQL_PASSWORD:-请替换为你的MySQL密码}
+      - MYSQL_DATABASE=${MYSQL_DATABASE:-job_analysis}
+      - HDFS_NAMENODE=namenode
+      - HDFS_PORT=9000
+      - SPARK_MASTER=spark://spark-master:7077
+      - DIFY_API_KEY=${DIFY_API_KEY:-}
+      - DIFY_API_URL=${DIFY_API_URL:-http://dify-proxy:80}
+      - DIFY_API_TIMEOUT=${DIFY_API_TIMEOUT:-60}
+      - TZ=Asia/Shanghai
+    volumes:
+      - cjz-backend-code:/app
+      - cjz-backend-logs:/app/logs
+      - ./spark-jobs:/opt/spark-jobs:ro
+      - /etc/localtime:/etc/localtime:ro
+    depends_on:
+      mysql:
+        condition: service_healthy
+    restart: unless-stopped
+
+  # ─────────────────────────────────────────────────────────────────────────────
+  # Vue 前端 — 基于 ./frontend 目录构建，用 Nginx 托管
+  # ─────────────────────────────────────────────────────────────────────────────
+  frontend:
+    build:
+      context: ./frontend
+      dockerfile: Dockerfile
+    container_name: cjz-frontend
+    hostname: frontend
+    networks:
+      - cjz-bigdata-net
+    ports:
+      - "3000:80"
+    volumes:
+      - cjz-frontend-code:/app
+      - cjz-nginx-conf:/etc/nginx/conf.d:ro
+      - /etc/localtime:/etc/localtime:ro
+    depends_on:
+      - backend
+    restart: unless-stopped
+
+  # ─────────────────────────────────────────────────────────────────────────────
+  # Dify API — AI 问答智能体（API 服务）
+  # ─────────────────────────────────────────────────────────────────────────────
+  dify-api:
+    image: langgenius/dify-api:0.15.3
+    container_name: cjz-dify-api
+    hostname: dify-api
+    networks:
+      - cjz-bigdata-net
+    environment:
+      - MODE=api
+      - LOG_LEVEL=INFO
+      - SECRET_KEY=${DIFY_SECRET_KEY:-请替换为你的Dify密钥}
+      - CONSOLE_WEB_URL=${DIFY_CONSOLE_WEB_URL:-}
+      - CONSOLE_API_URL=${DIFY_CONSOLE_API_URL:-}
+      - SERVICE_API_URL=${DIFY_SERVICE_API_URL:-}
+      - APP_WEB_URL=${DIFY_APP_WEB_URL:-}
+      - DB_USERNAME=${DIFY_DB_USER:-dify}
+      - DB_PASSWORD=${DIFY_DB_PASSWORD:-请替换为你的Dify数据库密码}
+      - DB_HOST=dify-db
+      - DB_PORT=5432
+      - DB_DATABASE=${DIFY_DB_NAME:-dify}
+      - REDIS_HOST=dify-redis
+      - REDIS_PORT=6379
+      - REDIS_PASSWORD=${DIFY_REDIS_PASSWORD:-请替换为你的Dify_Redis密码}
+      - STORAGE_TYPE=local
+      - STORAGE_LOCAL_PATH=/app/storage
+      - VECTOR_STORE=weaviate
+      - WEAVIATE_ENDPOINT=http://dify-weaviate:8080
+      - TZ=Asia/Shanghai
+    volumes:
+      - cjz-dify-data:/app/api/storage
+      - cjz-dify-storage:/app/storage
+      - /etc/localtime:/etc/localtime:ro
+    depends_on:
+      - dify-db
+      - dify-redis
+      - dify-weaviate
+    restart: unless-stopped
+
+  # ─────────────────────────────────────────────────────────────────────────────
+  # Dify Web — AI 问答智能体（Web 前端）
+  # ─────────────────────────────────────────────────────────────────────────────
+  dify-web:
+    image: langgenius/dify-web:0.15.3
+    container_name: cjz-dify-web
+    hostname: dify-web
+    networks:
+      - cjz-bigdata-net
+    environment:
+      - CONSOLE_API_URL=${DIFY_CONSOLE_API_URL:-/console/api}
+      - APP_API_URL=${DIFY_APP_API_URL:-/api}
+      - TZ=Asia/Shanghai
+    volumes:
+      - /etc/localtime:/etc/localtime:ro
+    depends_on:
+      - dify-api
+    restart: unless-stopped
+
+  # ─────────────────────────────────────────────────────────────────────────────
+  # Dify Proxy — Nginx 反向代理，统一 Dify 的入口
+  # ─────────────────────────────────────────────────────────────────────────────
+  dify-proxy:
+    image: nginx:latest
+    container_name: cjz-dify-proxy
+    hostname: dify-proxy
+    networks:
+      - cjz-bigdata-net
+    ports:
+      - "8080:80"
+    volumes:
+      - ./nginx/dify/proxy.conf:/etc/nginx/conf.d/default.conf:ro
+      - /etc/localtime:/etc/localtime:ro
+    depends_on:
+      - dify-web
+      - dify-api
+    restart: unless-stopped
+
+  # ─────────────────────────────────────────────────────────────────────────────
+  # Dify Worker — Dify 后台任务处理
+  # ─────────────────────────────────────────────────────────────────────────────
+  dify-worker:
+    image: langgenius/dify-api:0.15.3
+    container_name: cjz-dify-worker
+    hostname: dify-worker
+    networks:
+      - cjz-bigdata-net
+    environment:
+      - MODE=worker
+      - LOG_LEVEL=INFO
+      - SECRET_KEY=${DIFY_SECRET_KEY:-请替换为你的Dify密钥}
+      - DB_USERNAME=${DIFY_DB_USER:-dify}
+      - DB_PASSWORD=${DIFY_DB_PASSWORD:-请替换为你的Dify数据库密码}
+      - DB_HOST=dify-db
+      - DB_PORT=5432
+      - DB_DATABASE=${DIFY_DB_NAME:-dify}
+      - REDIS_HOST=dify-redis
+      - REDIS_PORT=6379
+      - REDIS_PASSWORD=${DIFY_REDIS_PASSWORD:-请替换为你的Dify_Redis密码}
+      - STORAGE_TYPE=local
+      - STORAGE_LOCAL_PATH=/app/storage
+      - VECTOR_STORE=weaviate
+      - WEAVIATE_ENDPOINT=http://dify-weaviate:8080
+      - TZ=Asia/Shanghai
+    volumes:
+      - cjz-dify-data:/app/api/storage
+      - cjz-dify-storage:/app/storage
+      - /etc/localtime:/etc/localtime:ro
+    depends_on:
+      - dify-db
+      - dify-redis
+      - dify-weaviate
+    restart: unless-stopped
+
+  # ─────────────────────────────────────────────────────────────────────────────
+  # Dify Weaviate — 向量数据库
+  # ─────────────────────────────────────────────────────────────────────────────
+  dify-weaviate:
+    image: semitechnologies/weaviate:1.19.0
+    container_name: cjz-dify-weaviate
+    hostname: dify-weaviate
+    networks:
+      - cjz-bigdata-net
+    environment:
+      - QUERY_DEFAULTS_LIMIT=25
+      - AUTHENTICATION_ANONYMOUS_ACCESS_ENABLED=true
+      - PERSISTENCE_DATA_PATH=/var/lib/weaviate
+      - DEFAULT_VECTORIZER_MODULE=none
+      - CLUSTER_HOSTNAME=node1
+      - TZ=Asia/Shanghai
+    volumes:
+      - cjz-dify-weaviate:/var/lib/weaviate
+      - /etc/localtime:/etc/localtime:ro
+    restart: unless-stopped
+
+  # ─────────────────────────────────────────────────────────────────────────────
+  # Dify DB — PostgreSQL (Dify 内部数据库)
+  # ─────────────────────────────────────────────────────────────────────────────
+  dify-db:
+    image: postgres:16-alpine
+    container_name: cjz-dify-db
+    hostname: dify-db
+    networks:
+      - cjz-bigdata-net
+    environment:
+      - POSTGRES_USER=${DIFY_DB_USER:-dify}
+      - POSTGRES_PASSWORD=${DIFY_DB_PASSWORD:-请替换为你的Dify数据库密码}
+      - POSTGRES_DB=${DIFY_DB_NAME:-dify}
+      - TZ=Asia/Shanghai
+    volumes:
+      - cjz-dify-db:/var/lib/postgresql/data
+      - /etc/localtime:/etc/localtime:ro
+    healthcheck:
+      test: ["CMD", "pg_isready", "-U", "${DIFY_DB_USER:-dify}"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    restart: unless-stopped
+
+  # ─────────────────────────────────────────────────────────────────────────────
+  # Dify Redis — Dify 缓存
+  # ─────────────────────────────────────────────────────────────────────────────
+  dify-redis:
+    image: redis:7-alpine
+    container_name: cjz-dify-redis
+    hostname: dify-redis
+    command: redis-server --requirepass ${DIFY_REDIS_PASSWORD:-请替换为你的Dify_Redis密码}
+    networks:
+      - cjz-bigdata-net
+    environment:
+      - REDIS_PASSWORD=${DIFY_REDIS_PASSWORD:-请替换为你的Dify_Redis密码}
+      - TZ=Asia/Shanghai
+    volumes:
+      - cjz-dify-redis:/data
+      - /etc/localtime:/etc/localtime:ro
+    healthcheck:
+      test: ["CMD", "redis-cli", "-a", "${DIFY_REDIS_PASSWORD:-请替换为你的Dify_Redis密码}", "ping"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    restart: unless-stopped

@@ -1,0 +1,139 @@
+# =============================================================================
+# 第二层：Hadoop 集群层
+# 职责：Hadoop 完整集群（NameNode + SecondaryNameNode + ResourceManager
+#       + 2 DataNode + 2 NodeManager）
+# 来源：基于 https://github.com/cjz-6/bigdata-ol 适配
+# 网络和卷引用第一层 docker-compose.base.yml 的定义
+# 使用方式：docker compose -f docker-compose.base.yml -f docker-compose.hadoop.yml up -d
+# =============================================================================
+
+services:
+  namenode:
+    build: ./hadoop
+    container_name: cjz-namenode
+    hostname: namenode
+    networks:
+      cjz-bigdata-net:
+        ipv4_address: 172.25.0.10
+    environment:
+      - HADOOP_ROLE=namenode
+      - TZ=Asia/Shanghai
+    ports:
+      - "9870:9870"
+      - "9000:9000"
+    volumes:
+      - cjz-namenode-name:/usr/local/hadoop3.4.2/dfs/name
+      - cjz-namenode-logs:/usr/local/hadoop3.4.2/logs
+      - cjz-hadoop-tmp:/usr/local/hadoop3.4.2/tmp
+      - /etc/localtime:/etc/localtime:ro
+    restart: unless-stopped
+
+  secondarynamenode:
+    build: ./hadoop
+    container_name: cjz-secondarynamenode
+    hostname: secondarynamenode
+    networks:
+      cjz-bigdata-net:
+        ipv4_address: 172.25.0.12
+    environment:
+      - HADOOP_ROLE=secondarynamenode
+      - TZ=Asia/Shanghai
+    ports:
+      - "9868:9868"
+    volumes:
+      - cjz-secondarynamenode-logs:/usr/local/hadoop3.4.2/logs
+      - /etc/localtime:/etc/localtime:ro
+    depends_on:
+      - namenode
+    restart: unless-stopped
+
+  resourcemanager:
+    build: ./hadoop
+    container_name: cjz-resourcemanager
+    hostname: resourcemanager
+    networks:
+      cjz-bigdata-net:
+        ipv4_address: 172.25.0.11
+    environment:
+      - HADOOP_ROLE=resourcemanager
+      - TZ=Asia/Shanghai
+    ports:
+      - "8088:8088"
+    volumes:
+      - cjz-resourcemanager-logs:/usr/local/hadoop3.4.2/logs
+      - /etc/localtime:/etc/localtime:ro
+    depends_on:
+      - namenode
+    restart: unless-stopped
+
+  datanode1:
+    build: ./hadoop
+    container_name: cjz-datanode1
+    hostname: datanode1
+    networks:
+      cjz-bigdata-net:
+        ipv4_address: 172.25.0.21
+    environment:
+      - HADOOP_ROLE=datanode
+      - TZ=Asia/Shanghai
+    volumes:
+      - cjz-datanode1-data:/usr/local/hadoop3.4.2/dfs/data
+      - cjz-datanode1-logs:/usr/local/hadoop3.4.2/logs
+      - cjz-hadoop-tmp:/usr/local/hadoop3.4.2/tmp
+      - /etc/localtime:/etc/localtime:ro
+    depends_on:
+      - namenode
+    restart: unless-stopped
+
+  datanode2:
+    build: ./hadoop
+    container_name: cjz-datanode2
+    hostname: datanode2
+    networks:
+      cjz-bigdata-net:
+        ipv4_address: 172.25.0.22
+    environment:
+      - HADOOP_ROLE=datanode
+      - TZ=Asia/Shanghai
+    volumes:
+      - cjz-datanode2-data:/usr/local/hadoop3.4.2/dfs/data
+      - cjz-datanode2-logs:/usr/local/hadoop3.4.2/logs
+      - cjz-hadoop-tmp:/usr/local/hadoop3.4.2/tmp
+      - /etc/localtime:/etc/localtime:ro
+    depends_on:
+      - namenode
+    restart: unless-stopped
+
+  nodemanager1:
+    build: ./hadoop
+    container_name: cjz-nodemanager1
+    hostname: nodemanager1
+    networks:
+      cjz-bigdata-net:
+        ipv4_address: 172.25.0.31
+    environment:
+      - HADOOP_ROLE=nodemanager
+      - TZ=Asia/Shanghai
+    volumes:
+      - cjz-nodemanager1-logs:/usr/local/hadoop3.4.2/logs
+      - /etc/localtime:/etc/localtime:ro
+    depends_on:
+      - resourcemanager
+    restart: unless-stopped
+
+  nodemanager2:
+    build: ./hadoop
+    container_name: cjz-nodemanager2
+    hostname: nodemanager2
+    networks:
+      cjz-bigdata-net:
+        ipv4_address: 172.25.0.32
+    environment:
+      - HADOOP_ROLE=nodemanager
+      - TZ=Asia/Shanghai
+    volumes:
+      - cjz-nodemanager2-logs:/usr/local/hadoop3.4.2/logs
+      - /etc/localtime:/etc/localtime:ro
+    depends_on:
+      - resourcemanager
+    restart: unless-stopped

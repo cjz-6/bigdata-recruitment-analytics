@@ -1,0 +1,208 @@
+# =============================================================================
+# 第一层：基础定义层
+# 职责：定义整个项目共享的 Docker 网络和所有需要持久化的数据卷
+# 不包含任何具体服务
+# 使用方式：docker compose -f docker-compose.base.yml -f docker-compose.hadoop.yml -f docker-compose.services.yml up -d
+# =============================================================================
+
+networks:
+  cjz-bigdata-net:
+    driver: bridge
+    ipam:
+      config:
+        - subnet: 172.25.0.0/16
+
+volumes:
+  # ─── Hadoop 集群 ───
+  cjz-namenode-name:
+    driver: local
+    driver_opts:
+      type: none
+      o: bind
+      device: ./data/namenode/name
+
+  cjz-namenode-logs:
+    driver: local
+    driver_opts:
+      type: none
+      o: bind
+      device: ./data/namenode/logs
+
+  cjz-secondarynamenode-logs:
+    driver: local
+    driver_opts:
+      type: none
+      o: bind
+      device: ./data/secondarynamenode/logs
+
+  cjz-resourcemanager-logs:
+    driver: local
+    driver_opts:
+      type: none
+      o: bind
+      device: ./data/resourcemanager/logs
+
+  cjz-datanode1-data:
+    driver: local
+    driver_opts:
+      type: none
+      o: bind
+      device: ./data/datanode1/data
+
+  cjz-datanode1-logs:
+    driver: local
+    driver_opts:
+      type: none
+      o: bind
+      device: ./data/datanode1/logs
+
+  cjz-datanode2-data:
+    driver: local
+    driver_opts:
+      type: none
+      o: bind
+      device: ./data/datanode2/data
+
+  cjz-datanode2-logs:
+    driver: local
+    driver_opts:
+      type: none
+      o: bind
+      device: ./data/datanode2/logs
+
+  cjz-nodemanager1-logs:
+    driver: local
+    driver_opts:
+      type: none
+      o: bind
+      device: ./data/nodemanager1/logs
+
+  cjz-nodemanager2-logs:
+    driver: local
+    driver_opts:
+      type: none
+      o: bind
+      device: ./data/nodemanager2/logs
+
+  cjz-hadoop-tmp:
+    driver: local
+    driver_opts:
+      type: none
+      o: bind
+      device: ./data/tmp
+
+  # ─── MySQL ───
+  cjz-mysql-data:
+    driver: local
+    driver_opts:
+      type: none
+      o: bind
+      device: ./data/mysql/data
+
+  cjz-mysql-logs:
+    driver: local
+    driver_opts:
+      type: none
+      o: bind
+      device: ./data/mysql/logs
+
+  cjz-mysql-conf:
+    driver: local
+    driver_opts:
+      type: none
+      o: bind
+      device: ./data/mysql/conf
+
+  cjz-mysql-init:
+    driver: local
+    driver_opts:
+      type: none
+      o: bind
+      device: ./data/mysql/init
+
+  # ─── Spark ───
+  cjz-spark-master-data:
+    driver: local
+    driver_opts:
+      type: none
+      o: bind
+      device: ./data/spark/master
+
+  cjz-spark-worker-data:
+    driver: local
+    driver_opts:
+      type: none
+      o: bind
+      device: ./data/spark/worker
+
+  cjz-spark-jars:
+    driver: local
+    driver_opts:
+      type: none
+      o: bind
+      device: ./data/spark/jars
+
+  # ─── 业务应用 ───
+  cjz-backend-code:
+    driver: local
+    driver_opts:
+      type: none
+      o: bind
+      device: ./backend
+
+  cjz-backend-logs:
+    driver: local
+    driver_opts:
+      type: none
+      o: bind
+      device: ./logs
+
+  cjz-frontend-code:
+    driver: local
+    driver_opts:
+      type: none
+      o: bind
+      device: ./frontend
+
+  cjz-nginx-conf:
+    driver: local
+    driver_opts:
+      type: none
+      o: bind
+      device: ./nginx
+
+  # ─── Dify ───
+  cjz-dify-data:
+    driver: local
+    driver_opts:
+      type: none
+      o: bind
+      device: ./data/dify/data
+
+  cjz-dify-redis:
+    driver: local
+    driver_opts:
+      type: none
+      o: bind
+      device: ./data/dify/redis
+
+  cjz-dify-db:
+    driver: local
+    driver_opts:
+      type: none
+      o: bind
+      device: ./data/dify/db
+
+  cjz-dify-storage:
+    driver: local
+    driver_opts:
+      type: none
+      o: bind
+      device: ./data/dify/storage
+
+  cjz-dify-weaviate:
+    driver: local
+    driver_opts:
+      type: none
+      o: bind
+      device: ./data/dify/weaviate
